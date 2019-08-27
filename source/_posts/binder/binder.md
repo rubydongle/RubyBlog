@@ -109,6 +109,15 @@ void ProcessState::spawnPooledThread(bool isMain)
         t->run(name.string());
     }
 }
+
+void ProcessState::startThreadPool()
+{
+    AutoMutex _l(mLock);
+    if (!mThreadPoolStarted) {
+        mThreadPoolStarted = true;
+        spawnPooledThread(true);
+    }
+}
 ```
 我们需要观察下这个PoolThread是干什么的。  
 
