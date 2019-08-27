@@ -1,5 +1,11 @@
 ---
 title: Hexo安装使用
+date: 2019-08-26 23:00:04
+categories:
+- 技术文章
+tags:
+- javascript
+- hexo
 ---
 ## 1.安装Hexo
 ```
@@ -119,11 +125,11 @@ INFO  Start processing
 INFO  Hexo is running at http://localhost:4000 . Press Ctrl+C to stop.
 ```
 此时打开"http://localhost:4000"就能看到我们的博客网站运行起来了。  
-![img](hexo本地运行.PNG)
+![img](/images/Hexo安装使用/hexo本地运行.PNG)
 
 ## 5.上传到github
 在github上创建一个参考，作为存储项目RubyBlog的仓库，然后点击Create repository。  
-![img](github创建项目.PNG)  
+![img](/images/Hexo安装使用/github创建项目.PNG)  
 将本地的创建的RubyBlog目录推送到github上去。  
 ```
 root@batman:~/work/myblog/RubyBlog# git remote add origin https://github.com/RubyDongyu/RubyBlog.git
@@ -140,15 +146,15 @@ To https://github.com/RubyDongyu/RubyBlog.git
 Branch master set up to track remote branch master from origin.
 ```
 此时我们的博客网站成功上传到了github上。
-![img](github_push项目.PNG)
+![img](/images/Hexo安装使用/github_push项目.PNG)
 
 ## 6.使用github pages展示markdown内容
 在github上创建一个存储博客静态网页的仓库rubydong.github.io  
-![img](github创建项目2.PNG)  
+![img](/images/Hexo安装使用/github创建项目2.PNG)  
 创建好后，点击Settings按钮  
-![img](githubsettings.PNG)  
+![img](/images/Hexo安装使用/githubsettings.PNG)  
 进入Settings后向下滑动我们可以看到GitHub Pages设置项,设置后我们就看到了我们的网页设置到了 https://rubydongyu.github.io/。  
-![img](设置githubpages.PNG)  
+![img](/images/Hexo安装使用/设置githubpages.PNG)  
 
 ## 7.发布Hexo到github pages上
 发布Hexo博客到github pages上需要一个插件hexo-deployer-git，通过命令npm install hexo-deployer-heroku --save安装。
@@ -190,7 +196,7 @@ Branch master set up to track remote branch master from https://github.com/rubyd
 INFO  Deploy done: git
 ```
 此时我们的静态网页就能在github pages上正常工作了。  
-![img](githubpages完成.PNG)
+![img](/images/Hexo安装使用/githubpages完成.PNG)
 
 ## 8.插入图片  
 Hexo有多种图片插入方式，可以将图片存放在本地引用或者将图片放在CDN上引用。

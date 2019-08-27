@@ -1,7 +1,11 @@
 ---
 title: binder
 date: 2019-08-27 23:08:04
+categories:
+- 技术文章
 tags:
+- Android
+- Binder
 ---
 
 ## 1.libbinder库
