@@ -302,3 +302,183 @@ inx指令的作用是将X寄存器中的数进行+1操作，当为0时会设置�
 %0000,0000->Zero Flag Seted.
 %1000,0000->Negative Flag Seted.
 
+8.将所有sprites 的offscreen 设置为Y=255
+oam是在段OAM申明的。
+```
+.segment "OAM"
+oam: .res 256        ; sprite OAM data to be uploaded by DMA
+```
+进入链接配置example.cfg文件中我们可以看到其所在内存区域为$0200  
+```
+MEMORY {
+......
+    OAM:    start = $0200,  size = $0100, type = rw, file = "";
+......
+}
+
+SEGMENTS {
+......
+    OAM:      load = OAM, type = bss, align = $100;
+......
+}
+```
+对照内存布局的安排如下：  
+|$0200-$02FF	|256 bytes	|Data to be copied to OAM during next vertical blan
+
+9.进入循环等待vblank
+```
+:
+	bit $2002
+        bpl :-
+```
+
+10.启动跳转到main   
+```
+lda #%10001000
+sta $2000
+jmp main
+```
+$2000 是PPU Control寄存器的地址，这一步操作相当于把$10001000写入了。使能了NMI。  
+
+## 3.执行main代码
+main代码分成三部分初始化界面、循环、绘制  
+```
+.segment "CODE"
+main:
+        ; setup
+        ldx #0
+        :
+                lda example_palette, X
+                sta palette, X
+                inx
+                cpx #32
+                bcc :-
+        jsr setup_background
+        ; center the cursor
+        lda #128
+        sta cursor_x
+        lda #120
+        sta cursor_y
+        ; show the screen
+        jsr draw_cursor
+        jsr ppu_update
+        ; main loop
+@loop:
+        ; read gamepad
+        jsr gamepad_poll
+......
+@draw:
+        ; draw everything and finish the frame
+        jsr draw_cursor
+        jsr ppu_update
+        ; keep doing this forever!
+        jmp @loop
+```
+1.初始化界面
+初始化界面操作如下
+a.赋值palette
+```
+        ldx #0
+        :
+                lda example_palette, X
+                sta palette, X
+                inx
+                cpx #32
+                bcc :-
+```
+example_palette在代码的RODATA代码段。根据链接配置example.cfg，我们知道其在内存$8000处。  
+```
+MEMORY {
+......
+    PRG:    start = $8000,  size = $8000, type = ro, file = %O, fill = yes, fillval = $00;
+......
+}
+
+SEGMENTS {
+......
+    RODATA:   load = PRG, type = ro;
+......
+}
+```
+代码中我们定义了RODATA内存区中的example_palette如下：
+```
+.segment "RODATA"
+example_palette:
+.byte $0F,$15,$26,$37 ; bg0 purple/pink
+.byte $0F,$09,$19,$29 ; bg1 green
+.byte $0F,$01,$11,$21 ; bg2 blue
+.byte $0F,$00,$10,$30 ; bg3 greyscale
+.byte $0F,$18,$28,$38 ; sp0 yellow
+.byte $0F,$14,$24,$34 ; sp1 purple
+.byte $0F,$1B,$2B,$3B ; sp2 teal
+.byte $0F,$12,$22,$32 ; sp3 marine
+```
+代码的指令操作相当于读取example_paltte中的内容，存储到palette中去了。  
+palette在代码中的定义如下：  
+```
+.segment "BSS"
+nmt_update: .res 256 ; nametable update entry buffer for PPU update
+palette:    .res 32  ; palette buffer for PPU update
+```
+其存在于BSS段，参考链接配置文件example.cfg  
+其在$0300-$0800内。  
+MEMORY {
+......
+    RAM:    start = $0300,  size = $0500, type = rw, file = "";
+......
+}
+
+SEGMENTS {
+......
+    BSS:      load = RAM, type = bss;
+......
+}
+赋值好palette后，就通过jsr跳转到setup_background设置背景了。
+
+b.设置背景  
+设置背景的指令比较多，就不列出了。  
+
+设置完成后通过rts出栈，退出。
+后面设置cursor坐标的x，y值。  
+
+c.将cursor坐标设置到中心。  
+```
+        ; center the cursor
+        lda #128
+        sta cursor_x
+        lda #120
+        sta cursor_y
+```
+我们的cursor_x和cursor_y变量存储在ZEROPAGE段中。  
+.segment "ZEROPAGE"
+cursor_x: .res 1
+cursor_y: .res 1
+temp_x:   .res 1
+temp_y:   .res 1
+对应连接配置文件如下：
+MEMORY {
+    ZP:     start = $00,    size = $0100, type = rw, file = "";
+......
+}
+
+SEGMENTS {
+    ZEROPAGE: load = ZP,  type = zp;
+......
+}
+
+:qa
+d.将上面设置的内容显示到屏幕上来。  
+```
+        ; show the screen
+        jsr draw_cursor
+        jsr ppu_update
+```
+draw_cursor的作用是把
+
+2.进入循环  
+循环中不停从输入读取输入。  
+根据不同的按键进行不同的操作start、u、d、l、r、select、B、A按键。  
+
+
+
+
