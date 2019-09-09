@@ -9,9 +9,9 @@ tags:
 ## 1.代码使用
 代码位置存在于
 [https://github.com/rubydongle/Nes-ca65-Example.git](https://github.com/rubydongle/Nes-ca65-Example.git)   
-内部写好了Makefile文件，按照[http://wiki.nesdev.com/w/index.php/Installing_CC65](http://wiki.nesdev.com/w/index.php/Installing_CC65)中的提示下载好编译工具链后，使用make命令就可以直接构建了。  
+内部写好了Makefile文件，按照[安装CC65](http://wiki.nesdev.com/w/index.php/Installing_CC65)中的提示下载好编译工具链后，使用make命令就可以直接构建了。  
 分析此代码的目的是为了学习ATT汇编的格式，以及 6502 processor汇编语言。  
-6502的指令集可以参考[http://wiki.nesdev.com/w/index.php/6502_instructions](http://wiki.nesdev.com/w/index.php/6502_instructions)  
+6502的指令集可以参考[6502_instructions](http://wiki.nesdev.com/w/index.php/6502_instructions)  
 其中下面的目录不错 [http://obelisk.me.uk/6502/reference.html](http://obelisk.me.uk/6502/reference.html)  
 
 [http://nesdev.com/6502_cpu.txt](http://nesdev.com/6502_cpu.txt)
