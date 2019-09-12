@@ -435,4 +435,6 @@ int main(int argc, char* const argv[])
 09-11 12:07:06.375 I/testprintf(12056): helloworld from testprintf
 ```
 
-
+## /dev/ptmx设备
+参考：[https://blog.csdn.net/tenfyguo/article/details/5742389](https://blog.csdn.net/tenfyguo/article/details/5742389)
+logwrapper/logwrap.c中对ptty的使用
