@@ -68,6 +68,169 @@ logd创建了3个socket通道用于通信分别是：
 - /dev/socket/logd
 - /dev/socket/logdr
 - /dev/socket/logdw
+1.CommandListener-logd  
+![img](/images/AndroidLogSystem/CommandListenerUML.png)
+ 整体流程大概如下：  
+  首先CommandListener构建时打开设备节点/dev/socket/logd,并监听Client的请求，同时通过registerCmd设置能够处理的请求。  
+  registerCmd的操作是将Server能处理的请求加入到mCommands队列中。
+  当接收到Client请求时，构造一个SocketClient并加入到队列mClients中。
+  同时CommandListener对Client发送来的Command请求，到mCommands队列中去查找，当查找到相应的FrameworkCommnad时，使用其runCommand函数执行请求。
+  在CommandListener的构造函数中可以看到其设置并可以处理的Command。  
+  ```cpp
+  CommandListener::CommandListener(LogBuffer* buf, LogReader* /*reader*/,
+                                 LogListener* /*swl*/)
+    : FrameworkListener(getLogSocket()) {
+    // registerCmd(new ShutdownCmd(buf, writer, swl));
+    registerCmd(new ClearCmd(buf));
+    registerCmd(new GetBufSizeCmd(buf));
+    registerCmd(new SetBufSizeCmd(buf));
+    registerCmd(new GetBufSizeUsedCmd(buf));
+    registerCmd(new GetStatisticsCmd(buf));
+    registerCmd(new SetPruneListCmd(buf));
+    registerCmd(new GetPruneListCmd(buf));
+    registerCmd(new GetEventTagCmd(buf));
+    registerCmd(new ReinitCmd());
+    registerCmd(new ExitCmd(this));
+  }
+  ```
+2.log缓存Buffer  
+logd中通过LogBuffer缓存log消息。LogBuffer结构如下：  
+![img](/images/AndroidLogSystem/LogBufferUML.png)
+所有发送到logd的log信息都构建成了LogBufferElement元素存储在列表mLogElements中。  
+logd/LogBuffer.cpp  
+```cpp
+// assumes LogBuffer::wrlock() held, owns elem, look after garbage collection
+void LogBuffer::log(LogBufferElement* elem) {
+    // cap on how far back we will sort in-place, otherwise append
+    static uint32_t too_far_back = 5;  // five seconds
+    // Insert elements in time sorted order if possible
+    //  NB: if end is region locked, place element at end of list
+    LogBufferElementCollection::iterator it = mLogElements.end();
+    LogBufferElementCollection::iterator last = it;
+    if (__predict_true(it != mLogElements.begin())) --it;
+    if (__predict_false(it == mLogElements.begin()) ||
+        __predict_true((*it)->getRealTime() <= elem->getRealTime()) ||
+        __predict_false((((*it)->getRealTime().tv_sec - too_far_back) >
+                         elem->getRealTime().tv_sec) &&
+                        (elem->getLogId() != LOG_ID_KERNEL) &&
+                        ((*it)->getLogId() != LOG_ID_KERNEL))) {
+        mLogElements.push_back(elem);                                //将LogBufferElement元素存入到mLogElemnts中
+    } else {
+......
+        if (end_always || (end_set && (end > (*it)->getRealTime()))) {
+            mLogElements.push_back(elem);                            //将LogBufferElement元素存入到mLogElements中
+        } else {
+            // should be short as timestamps are localized near end()
+            do {
+                last = it;
+                if (__predict_false(it == mLogElements.begin())) {
+                    break;
+                }
+                --it;
+            } while (((*it)->getRealTime() > elem->getRealTime()) &&
+                     (!end_set || (end <= (*it)->getRealTime())));
+            mLogElements.insert(last, elem);                        //将LogBufferElement元素存入到mLogElements中
+        }
+        LogTimeEntry::unlock();
+    }
+
+    stats.add(elem);
+    maybePrune(elem->getLogId());
+}
+```
+
+3.从logd读取log 
+客户端如logcat通过/dev/sock/logdr socket文件和logd交互读取log，logd读取侧的结构如下：  
+![img](/images/AndroidLogSystem/LogReaderUML.png)
+LogReader构建时开始监听socket /dev/sock/logdr的数据，当接收到读取log的请求时，调用onDataAvailable()函数处理请求。  
+在onDataAvailable()函数中会构造FlushCommand对象并通过runSocketCommand()函数向Client发送其需要的log。  
+而在runSocketCommand中其构造了LogTimeEntry，并用startReader_Locked()函数启动了一个线程，将LogBuffer中的数据发送到Client中。  
+在这之后其他的Client能再次通过/dev/sock/logdr请求log数据。  
+logd/LogTimes.cpp
+```cpp
+void* LogTimeEntry::threadStart(void* obj) {
+    prctl(PR_SET_NAME, "logd.reader.per");
+
+    LogTimeEntry* me = reinterpret_cast<LogTimeEntry*>(obj);
+
+    pthread_cleanup_push(threadStop, obj);
+
+    SocketClient* client = me->mClient;
+    if (!client) {
+        me->error();
+        return nullptr;
+    }
+
+    LogBuffer& logbuf = me->mReader.logbuf();
+
+    bool privileged = FlushCommand::hasReadLogs(client);
+    bool security = FlushCommand::hasSecurityLogs(client);
+
+    me->leadingDropped = true;
+
+    wrlock();
+
+    log_time start = me->mStart;
+
+    while (me->threadRunning && !me->isError_Locked()) {
+        if (me->mTimeout.tv_sec || me->mTimeout.tv_nsec) {
+            if (pthread_cond_timedwait(&me->threadTriggeredCondition,
+                                       &timesLock, &me->mTimeout) == ETIMEDOUT) {
+                me->mTimeout.tv_sec = 0;
+                me->mTimeout.tv_nsec = 0;
+            }
+            if (!me->threadRunning || me->isError_Locked()) {
+                break;
+            }
+        }
+
+        unlock();
+
+        if (me->mTail) {
+            logbuf.flushTo(client, start, nullptr, privileged, security,
+                           FilterFirstPass, me);
+            me->leadingDropped = true;
+        }
+        start = logbuf.flushTo(client, start, me->mLastTid, privileged,
+                               security, FilterSecondPass, me);
+
+        wrlock();
+
+        if (start == LogBufferElement::FLUSH_ERROR) {
+            me->error_Locked();
+            break;
+        }
+
+        me->mStart = start + log_time(0, 1);
+
+        if (me->mNonBlock || !me->threadRunning || me->isError_Locked()) {
+            break;
+        }
+
+        me->cleanSkip_Locked();
+
+        if (!me->mTimeout.tv_sec && !me->mTimeout.tv_nsec) {
+            pthread_cond_wait(&me->threadTriggeredCondition, &timesLock);
+        }
+    }
+
+    unlock();
+
+    pthread_cleanup_pop(true);
+
+    return nullptr;
+}
+```
+
+4.log写入logd  
+在logd侧写入log比较简单，logd中接收Client传递过来的log数据后执行onDataAvilable()，并将其写入到LogBuffer中。  
+![img](/images/AndroidLogSystem/LogListenerUML.png)
+
+## liblog
+#### Android 8.0(O)之前
+
+#### Android 9.0(P)之后
+  
 
 
 ## 标准输出、标准错误
