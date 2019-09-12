@@ -147,5 +147,89 @@ adbd的启动过程包括下面的几步：
 6.jdwp是和Java进程进行debug交互的协议。  
 7.当一切准备好后通过fdevent_loop()处理adb的每一条请求。  
 
+目前支持两种adb通信，USB通信和TCP Socket通信。在adb/transport.cpp中对通信方式抽象成struct atransport，构建USB和socket类型的通信后通过register_transport进行注册。  
+参考class atransport(adb/transport.h)
+
+
+#### USB通信
+adb/daemon/usb.c h
+使用USB进行adb通信是，数据封装在struct aio_block，通信处理通过struct usb_handle提供。  
+```
+struct aio_block {
+    std::vector<struct iocb> iocb;
+    std::vector<struct iocb*> iocbs;
+    std::vector<struct io_event> events;
+    aio_context_t ctx;
+    int num_submitted;
+    int fd;
+};
+
+struct usb_handle {
+    usb_handle() : kicked(false) {
+    }
+
+    std::condition_variable notify;
+    std::mutex lock;
+    std::atomic<bool> kicked;
+    bool open_new_connection = true;
+
+    int (*write)(usb_handle* h, const void* data, int len);
+    int (*read)(usb_handle* h, void* data, int len);
+    void (*kick)(usb_handle* h);
+    void (*close)(usb_handle* h);
+
+    // FunctionFS
+    int control = -1;
+    int bulk_out = -1; /* "out" from the host's perspective => source for adbd */
+    int bulk_in = -1;  /* "in" from the host's perspective => sink for adbd */
+
+    // Access to these blocks is very not thread safe. Have one block for both the
+    // read and write threads.
+    struct aio_block read_aiob;
+    struct aio_block write_aiob;
+};
+```
+![img](/files/adb/targetUsbOp.png)
+Target 针对连接上的USB设备可以执行写、读、踢掉、关闭操作。  
+Android提供/dev/usb-ffs/adb/目录供adb通信使用。  
+![img](/files/adb/usbcommdev.png)
+- 构建并注册USB atransport
+```
+void register_usb_transport(usb_handle* usb, const char* serial, const char* devpath,
+                            unsigned writeable) {
+    atransport* t = new atransport((writeable ? kCsOffline : kCsNoPerm));
+
+    D("transport: %p init'ing for usb_handle %p (sn='%s')", t, usb, serial ? serial : "");
+    init_usb_transport(t, usb);
+    if (serial) {
+        t->serial = strdup(serial);
+    }
+
+    if (devpath) {
+        t->devpath = strdup(devpath);
+    }
+
+    {
+        std::lock_guard<std::recursive_mutex> lock(transport_lock);
+        pending_list.push_front(t);
+    }
+
+    register_transport(t);
+}
+
+// This should only be used for transports with connection_state == kCsNoPerm.
+void unregister_usb_transport(usb_handle* usb) {
+    std::lock_guard<std::recursive_mutex> lock(transport_lock);
+    transport_list.remove_if([usb](atransport* t) {
+        if (auto connection = dynamic_cast<UsbConnection*>(t->connection.get())) {
+            return connection->handle_ == usb && t->GetConnectionState() == kCsNoPerm;
+        }
+        return false;
+    });
+}
+```
+
+#### tcp通信
+
 
 ## Host侧
