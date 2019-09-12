@@ -11,11 +11,11 @@ https://blog.csdn.net/rikeyone/article/details/80307975
 https://elinux.org/Android_Logging_System
 
 ## 概要
-#### Android 8.0(O)之前：
+#### 基于logger设备驱动的Logger系统（Android 5.0之前不包含5.0）：
 Android的log包含两部分，内核中产生的，用户空间产生的。  
 内核空间产生的log通过Linux内核中的log系统进行处理，可以通过dmesg和/proc/kmsg进行访问。  
 用户空间的log系统我们称Logging系统将产生的log缓存到内核buffers中，整体架构如下：  
-![img](/images/AndroidLogSystem/Overview.png)
+![img](/images/AndroidLogSystem/Overview8.png)
 Logging系统包含如下部分：  
 - 一个字符设备驱动以及内核中用来存储log内容的buffers区。  
 - 用来向Logging系统输入Log，以及查看Log的C、C++以及Java库。  
@@ -27,8 +27,82 @@ Linux内核中有4个不同的buffers区，分别用来缓存不同类别的log�
 - radio:for radio and phone-related information
 - system:a log for low-level system messages and debugging 
 
+logger设备驱动的实现在kernel/drivers/staging/android/logger.c h中
+首先定义了四个设备节点/dev/log/main、/dev/log/radio、/dev/log/events、/dev/log/system.
+这四个设备节点是作为misc设备通过misc_register(&log->misc);注册到misc设备系统中的。  
 
-#### Android 9.0(P)之后：
+```c
+/*
+ * Log size must must be a power of two, and greater than
+ * (LOGGER_ENTRY_MAX_PAYLOAD + sizeof(struct logger_entry)).
+ */
+static int __init create_log(char *log_name, int size)
+{
+        int ret = 0;
+        struct logger_log *log;
+        unsigned char *buffer;
+
+        buffer = vmalloc(size);                              //分配log buffer用来存储log数据，不同的log类型buffer大小不一样。
+        if (buffer == NULL)
+                return -ENOMEM;
+
+        log = kzalloc(sizeof(struct logger_log), GFP_KERNEL);
+        if (log == NULL) {
+                ret = -ENOMEM;
+                goto out_free_buffer;
+        }
+        log->buffer = buffer;
+
+        log->misc.minor = MISC_DYNAMIC_MINOR;
+        log->misc.name = kstrdup(log_name, GFP_KERNEL);
+        if (log->misc.name == NULL) {
+                ret = -ENOMEM;
+                goto out_free_log;
+        }
+
+        log->misc.fops = &logger_fops;                       //定义设备文件对应的file操作
+        log->misc.parent = NULL;
+
+        init_waitqueue_head(&log->wq);
+        INIT_LIST_HEAD(&log->readers);
+        mutex_init(&log->mutex);
+        log->w_off = 0;
+        log->head = 0;
+        log->size = size;
+
+        INIT_LIST_HEAD(&log->logs);
+        list_add_tail(&log->logs, &log_list);
+
+        /* finally, initialize the misc device for this log */
+        ret = misc_register(&log->misc);                      // 注册misc设备
+        if (unlikely(ret)) {
+                pr_err("failed to register misc device for log '%s'!\n",
+                                log->misc.name);
+                goto out_free_misc_name;
+        }
+
+        pr_info("created %luK log '%s'\n",
+                (unsigned long) log->size >> 10, log->misc.name);
+
+        return 0;
+
+out_free_misc_name:
+        kfree(log->misc.name);
+
+out_free_log:
+        kfree(log);
+
+out_free_buffer:
+        vfree(buffer);
+        return ret;
+}
+
+```
+
+
+#### 基于logd的Logger系统（Android5.0之后包含5.0）：
+最新的Android取消了logger设备驱动，后续通过用户空间的logd进程负责收集log数据。  
+![img](/images/AndroidLogSystem/Overview9.png)
 Android 的Logging系统在用户空间构建，logd进程负责收集缓存log，liblog通过socket负责和logd进程通信。  
 logd通过系统属性暴露接口，控制logd的属性。  
 
@@ -227,10 +301,69 @@ void* LogTimeEntry::threadStart(void* obj) {
 ![img](/images/AndroidLogSystem/LogListenerUML.png)
 
 ## liblog
-#### Android 8.0(O)之前
+#### 基于logger设备驱动的Logger系统：
 
-#### Android 9.0(P)之后
+#### 基于logd的Logger系统：
+liblog中通过struct android_log_transport_write抽象log写入设备。  
+liblog/logger.h
+```cpp
+struct android_log_transport_write {
+  struct listnode node;
+  const char* name;                  /* human name to describe the transport */
+  unsigned logMask;                  /* mask cache of available() success */
+  union android_log_context context; /* Initialized by static allocation */
+
+  int (*available)(log_id_t logId); /* Does not cause resources to be taken */
+  int (*open)();   /* can be called multiple times, reusing current resources */
+  void (*close)(); /* free up resources */
+  /* write log to transport, returns number of bytes propagated, or -errno */
+  int (*write)(log_id_t logId, struct timespec* ts, struct iovec* vec,
+               size_t nr);
+};
+```
+目前liblog提供如下几类的android_log_transport_write:  
+- fakeLoggerWrite:liblog/fake_writer.c
+- localLoggerWrite:liblog/local_logger.c
+- logdLoggerWrite:liblog/logd_writer.c
+- pmsgLoggerWrite:liblog/pmsg_writer.c
+- stderrLoggerWrite:liblog/stderr_write.c
+- statsdLoggerWrite:libstats/statsd_writer.c
+
+## liblog的使用
+参考/system/core/liblog/README我们使用liblog进行log输出主要做下面几方面：  
+- 定义LOG_TAG
+- include 头文件<log/log.h>
+- 使用log函数，打印log。  
+  ```cpp
+       #define LOG_TAG "yourtag"
+       #include <log/log.h>
+
+       ALOG(android_priority, tag, format, ...)
+       IF_ALOG(android_priority, tag)
+       LOG_PRI(priority, tag, format, ...)
+       LOG_PRI_VA(priority, tag, format, args)
+       #define LOG_TAG NULL
+       ALOGV(format, ...)
+       ......
+  ```
   
+
+## C++ Style的Logging
+C++中通过std::cout<<"xx" 将数据xx定向到标准输出, Android中也提供了此种形式的Logging方法，用于向log系统写入log。 
+<<类型的输出方法定义在/system/core/base/include/android-base/logging.h
+我们通过如下形式使用：  
+```cpp
+#include <android-base/logging.h>
+
+LOG(INFO) << "Some text; " << some_value;
+```
+并且在Android.mk或Android.bp中申明链接使用libase库。  
+```
+    shared_libs: [
+        ......
+        "libbase",
+    ],
+```
 
 
 ## 标准输出、标准错误
