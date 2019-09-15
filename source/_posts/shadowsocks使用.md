@@ -68,3 +68,25 @@ export HTTPS_PROXY=socks5://127.0.0.1:1080
 ```
 然后执行source ~/bin/proxyconfig.sh终端的环境就设置好了。  
 
+
+## 问题解决 
+
+1.Android source Code 无法下载解决
+设置shadowsocks代理模式为http(s)
+然后配置代理HTTP(S)_PROXY=http(s)://127.0.0.1:1080  
+并且设置git的代理,可以通过下面的命令
+```
+git config --global http.proxy http://127.0.0.1:1080
+git config --global https.proxy https://127.0.0.1:1080
+git config --global http.proxy 'socks5://127.0.0.1:1080' 
+git config --global https.proxy 'socks5://127.0.0.1:1080'
+```
+也可以编辑~/.gitconfig文件
+```
+[http]
+        proxy = http://127.0.0.1:1080
+[https]
+        proxy = https://127.0.0.1:1080
+
+```
+完成后就能下载了。  
