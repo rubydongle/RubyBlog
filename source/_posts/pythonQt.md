@@ -7,6 +7,31 @@ tags:
   - python
 ---
 
+## Windows 安装qtdesigner
+pip3.6 install PyQt5-tools
+
+## Ubuntu 18 安装qtdesigner
+sudo apt-get install qt5-defalut qttools5-dev-tools
+
+## 使用Qt Designer
+blog.csdn.net/qq_33571896/article/details/79507843
+编辑好的ui文件通过pyuic5进行转换成py文件。  
+pyuic5 test.ui -o test.py -x 生成界面程序  
+或者执行pyuic5 test.ui -o test.py然后在生成的py文件末尾添加  
+```
+if __name__=="__main__":
+    import sys
+    from PyQt5.QtGui import QIcon
+    app = QtWidgets.QApplication(sys.argv)
+    widget=QtWidgets.QWidget()
+    ui = Ui_Form()
+    ui.setupUi(widget)
+#    widget.setWindowIcon(QIcon('web.png'))
+    widget.show()
+    sys.exit(app.exec_())
+```
+![img](/files/pythonqt/qtdesignerdemo.png)
+
 ## hello world
 ```
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
