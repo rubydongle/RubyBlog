@@ -7,6 +7,16 @@ tags:
   - python
 ---
 
+## 环境
+https://blog.csdn.net/weiaitaowang/article/details/52048462
+https://github.com/cxinping/PyQt5/
+用virtualenv构建一个python3环境。  
+```
+pip install virtualenv
+virtualenv -p pythonpath D:/py3env
+```
+然后执行Script目录下的activate.bat,激活环境。  
+
 ## Windows 安装qtdesigner
 pip3.6 install PyQt5-tools
 
