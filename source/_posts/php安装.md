@@ -6,16 +6,8 @@ date: 2019-09-17 22:26:21
 tags:
 ---
 
-https://blog.51cto.com/xpleaf/1903115
-## 下载php
-从https://www.php.net/downloads.php下载合适版本的php  
-```
-[root@vultr ~]# wget https://www.php.net/distributions/php-7.3.9.tar.xz
-[root@vultr ~]# tar xvf php-7.3.9.tar.xz 
-
-```
-https://www.php.net/git.php  
-下载源码  
+# 获取需要的文件
+从[php下载网站](https://www.php.net/downloads.php)获取需要的php文件或者通过git从[php git网站](https://www.php.net/git.php)下载源码。  
 ```
 git clone https://github.com/php/php-src.git
 
@@ -27,7 +19,7 @@ PHP HEAD: git checkout master
 ```
 run ./buildconf to generate the configure script. This may take several moments.
 
-## 编译源码
+# 编译源码
 1. 使用yum安装除libiconv-devel之外的其它lib库
 [root@leaf mysql]# yum install -y openssl openssl-devel zlib-devel libxml2-devel libjpeg-devel libjpeg-turbo-devel libiconv-devel freetype-devel libpng-devel gd-devel libcurl-devel libxslt-devel
 
@@ -193,3 +185,6 @@ tar xvf libzip-1.3.2.tar.gz
 cd libzip-1.3.2
 ./configure
 make && make install
+
+# 参考文档
+1.[从零开始完整搭建LNMP环境+WordPress部署](https://blog.51cto.com/xpleaf/1903115)
