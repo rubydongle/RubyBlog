@@ -55,13 +55,15 @@ run ./buildconf to generate the configure script. This may take several moments.
 ```
 ./configure \
 --prefix=/lnmp/php7.1 \
---with-mysql=/lnmp/mysql \
 --with-iconv-dir=/usr/local/libiconv \
 --with-freetype-dir \
 --with-jpeg-dir \
 --with-png-dir \
 --with-zlib \
 --with-libxml-dir=/usr \
+--with-mysqli \
+--with-pdo-mysql \
+--with-pdo-sqlite \
 --enable-xml \
 --disable-rpath \
 --enable-safe-mode \
@@ -131,6 +133,9 @@ drwxr-xr-x 15 root root  4096 9月  17 15:25 php
 pear.conf  php-fpm.conf.default  php-fpm.d
 [root@vultr etc]# cp php-fpm.conf.default php-fpm.conf
 
+[root@vultr etc]# cd php-fpm.d/
+[root@vultr php-fpm.d]# cp www.conf.default www.conf
+
 ```
 
 4.启动PHP服务
@@ -145,3 +150,46 @@ root     29820  1613  0 15:38 pts/1    00:00:00 grep --color=auto php-fpm
 [root@vultr php-fpm.d]#  netstat -lntup | grep 9000
 tcp        0      0 127.0.0.1:9000          0.0.0.0:*               LISTEN      29810/php-fpm: mast
 ```
+至此，PHP也安装完成了！LNMP的各个组件都安装好了，下面就要对LNMP环境进行测试了。
+
+
+## LNMP环境测试
+修改/lnmp/nginx/conf下的nginx.conf
+在location / {}后面添加一个location
+```
+        location ~ .*\.(php|php5)?$ {
+            root   html;
+            fastcgi_pass 127.0.0.1:9000;
+            fastcgi_index index.php;
+            include fastcgi.conf;
+        }
+```
+检查对配置的修改是否正确
+```
+[root@vultr conf]# nginx -t
+nginx: the configuration file /lnmp/nginx-1.16.1/conf/nginx.conf syntax is ok
+nginx: configuration file /lnmp/nginx-1.16.1/conf/nginx.conf test is successful
+```
+重启nginx  
+```
+[root@vultr conf]# service nginx restart
+Restarting nginx (via systemctl):                          [  OK  ]
+```
+向/lnmp/nginx/html目录中写入一个test_info.php用于测试php工作情况。  
+```
+echo "<?php phpinfo(); ?>" >/lnmp/nginx/html/test_info.php
+```
+用浏览器打开http://alphaepoch.com/test_info.php可以看到工作正常了  
+
+
+
+## 问题
+system libzip must be upgraded to version >= 0.11  
+yum  -y remove libzip-devel
+然后从官网下载并编译安装
+
+wget https://libzip.org/download/libzip-1.3.2.tar.gz
+tar xvf libzip-1.3.2.tar.gz
+cd libzip-1.3.2
+./configure
+make && make install
