@@ -1,6 +1,6 @@
 ---
 title: nginx安装
-date: 2019-09-18 15:09:07
+date: 2019-09-17 15:09:07
 categories:
   - 技术文章
 tags:
