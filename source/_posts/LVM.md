@@ -433,8 +433,69 @@ ruby@batman:/work$ df -h .
 
 ```
 
+## 扩展逻辑卷
+上一步创建的逻辑卷只有80G，随着不断的使用我们发现不够用了，这时候就需要进行扩展，增加大小。  
+```bash
+# 逻辑卷的空间已经使用完了
+ruby@batman:~/RubyBlog/source/_posts$ df -h /work
+文件系统             容量  已用  可用 已用% 挂载点
+/dev/mapper/vg1-lv1   79G   75G   32K  100% /work
+
+```
+调整逻辑卷大小的操作如下：  
+```bash
+# 取消逻辑卷的挂载
+ruby@batman:~$ sudo umount /work
+
+# 增大逻辑卷的大小到200G
+ruby@batman:~$ sudo lvresize -L 199.9G /dev/vg1/lv1
+  Rounding size to boundary between physical extents: 199.90 GiB.
+  Size of logical volume vg1/lv1 changed from 80.00 GiB (20480 extents) to 199.90 GiB (51175 extents).
+  Logical volume vg1/lv1 successfully resized.
+
+# 检查磁盘错误
+ruby@batman:~$ sudo e2fsck -f /dev/vg1/lv1 
+e2fsck 1.44.1 (24-Mar-2018)
+第 1 步：检查inode、块和大小
+第 2 步：检查目录结构
+第 3 步：检查目录连接性
+第 4 步：检查引用计数
+第 5 步：检查组概要信息
+/dev/vg1/lv1：1271345/5242880 文件（0.2% 为非连续的）， 19918840/20971520 块
+
+# 调整逻辑卷上的文件系统
+ruby@batman:~$ sudo resize2fs /dev/vg1/lv1 
+resize2fs 1.44.1 (24-Mar-2018)
+将 /dev/vg1/lv1 上的文件系统调整为 52403200 个块（每块 4k）。
+/dev/vg1/lv1 上的文件系统现在为 52403200 个块（每块 4k）。
+
+# 查看逻辑卷lv1的信息，已经扩展到200G了
+ruby@batman:~$ sudo lvdisplay 
+  --- Logical volume ---
+  LV Path                /dev/vg1/lv1
+  LV Name                lv1
+  VG Name                vg1
+  LV UUID                10e2wf-iPaa-P6uw-98dn-GziS-KE35-QqMq94
+  LV Write Access        read/write
+  LV Creation host, time batman, 2019-09-22 09:33:11 +0800
+  LV Status              available
+  # open                 0
+  LV Size                199.90 GiB
+  Current LE             51175
+  Segments               2
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:0
+
+# 挂载到/work上继续使用
+ruby@batman:~$ sudo mount /work
+```
+
+## 缩减逻辑卷
 
 
+## 扩展卷组
 
 
 
