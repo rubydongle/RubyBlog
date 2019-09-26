@@ -183,5 +183,8 @@ cd libzip-1.3.2
 make && make install
 ```
 
+2.在低于1G内存的机器上安装php 7 make时报错:make: *** [ext/fileinfo/libmagic/apprentice.lo] Error 1
+这是因为系统的内存不足1G造成的,然后需要加上 --disable-fileinfo,然重新编译即可；
+
 # 参考文档
 1.[从零开始完整搭建LNMP环境+WordPress部署](https://blog.51cto.com/xpleaf/1903115)
