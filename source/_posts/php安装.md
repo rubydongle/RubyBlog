@@ -166,6 +166,65 @@ echo "<?php phpinfo(); ?>" >/lnmp/nginx/html/test_info.php
 用浏览器打开[http://alphaepoch.com/test_info.php](http://alphaepoch.com/test_info.php)可以看到工作正常了  
 ![img](/files/nginx/phpworkok.PNG)
 
+# 设置php-fpm开机子启动
+开机自启动的脚本在源码目录中的php-src/sapi/fpm/init.d.php-fpm
+```bash
+# 添加控制脚本
+[root@spyderman php-src]# cp sapi/fpm/init.d.php-fpm /etc/init.d/php-fpm
+[root@spyderman php-src]# chmod a+x /etc/init.d/php-fpm 
+[root@spyderman php-src]# pkill php-fpm
+[root@spyderman php-src]# /etc/init.d/php-fpm start
+Starting php-fpm  done
+
+
+# 设置开机自启动
+[root@spyderman php-src]# chkconfig --list
+
+注：该输出结果只显示 SysV 服务，并不包含
+原生 systemd 服务。SysV 配置数据
+可能被原生 systemd 配置覆盖。 
+
+      要列出 systemd 服务，请执行 'systemctl list-unit-files'。
+      查看在具体 target 启用的服务请执行
+      'systemctl list-dependencies [target]'。
+
+aegis          	0:关	1:关	2:开	3:开	4:开	5:开	6:关
+mysqld         	0:关	1:关	2:开	3:开	4:开	5:开	6:关
+netconsole     	0:关	1:关	2:关	3:关	4:关	5:关	6:关
+network        	0:关	1:关	2:开	3:开	4:开	5:开	6:关
+nginx          	0:关	1:关	2:开	3:开	4:开	5:开	6:关
+[root@spyderman php-src]# chkconfig --add /etc/init.d/php-fpm 
+[root@spyderman php-src]# chkconfig php-fpm on
+[root@spyderman php-src]# chkconfig --list
+
+注：该输出结果只显示 SysV 服务，并不包含
+原生 systemd 服务。SysV 配置数据
+可能被原生 systemd 配置覆盖。 
+
+      要列出 systemd 服务，请执行 'systemctl list-unit-files'。
+      查看在具体 target 启用的服务请执行
+      'systemctl list-dependencies [target]'。
+
+aegis          	0:关	1:关	2:开	3:开	4:开	5:开	6:关
+mysqld         	0:关	1:关	2:开	3:开	4:开	5:开	6:关
+netconsole     	0:关	1:关	2:关	3:关	4:关	5:关	6:关
+network        	0:关	1:关	2:开	3:开	4:开	5:开	6:关
+nginx          	0:关	1:关	2:开	3:开	4:开	5:开	6:关
+php-fpm        	0:关	1:关	2:开	3:开	4:开	5:开	6:关
+
+# 测试
+[root@spyderman php-src]# service php-fpm stop
+Gracefully shutting down php-fpm . done
+[root@spyderman php-src]# service php-fpm start
+Starting php-fpm  done
+[root@spyderman php-src]# service php-fpm restart
+Gracefully shutting down php-fpm . done
+Starting php-fpm  done
+[root@spyderman php-src]# service php-fpm status
+php-fpm (pid 19336) is running...
+
+```
+
 
 
 # 问题解决
