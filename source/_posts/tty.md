@@ -91,3 +91,20 @@ struct tty_ldisc_ops {
 (1) 首先请确认你的内核在编译时配置了对串口终端的支持，并配置了正确的串口驱动程序。
 (2) 你的 boot loader 对串口的初始化设置可能会和内核对串口的初始化设置不一致。此外，对于诸如 s3c44b0x 这样的 CPU，CPU 时钟频率的设置也会影响串口，因此如果 boot loader 和内核对其 CPU 时钟频率的设置不一致，也会使串口终端无法正确显示信息。
 (3) 最后，还要确认 boot loader 所用的内核基地址必须和内核映像在编译时所用的运行基地址一致，尤其是对于 uClinux 而言。假设你的内核映像在编译时用的基地址是 0xc0008000，但你的 boot loader 却将它加载到 0xc0010000 处去执行，那么内核映像当然不能正确地执行了。
+
+N_TTY线路规程为串行子系统提供了终端的支持。  
+```bash
+ruby@batman:~$ cat /proc/tty/drivers 
+/dev/tty             /dev/tty        5       0 system:/dev/tty
+/dev/console         /dev/console    5       1 system:console
+/dev/ptmx            /dev/ptmx       5       2 system
+/dev/vc/0            /dev/vc/0       4       0 system:vtmaster
+dbc_serial           /dev/ttyDBC   241       0 serial
+dbc_serial           /dev/ttyDBC   242       0 serial
+ttyprintk            /dev/ttyprintk   5       3 console
+max310x              /dev/ttyMAX   204 209-224 serial
+serial               /dev/ttyS       4 64-111 serial
+pty_slave            /dev/pts      136 0-1048575 pty:slave
+pty_master           /dev/ptm      128 0-1048575 pty:master
+unknown              /dev/tty        4 1-63 console
+```
