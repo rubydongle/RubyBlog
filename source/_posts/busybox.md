@@ -77,3 +77,54 @@ _install/
 
 3 directories, 1 file
 ```
+
+# 构建initramfs/initrd
+rootfs下常见的目录有dev、etc、mnt
+所以我们进入_install中创建这些目录
+```bash
+mkdir etc
+mkdir dev
+mkdir mnt
+mkdir -p etc/init.d
+```
+
+在_install/etc/init.d目录下创建一个rcS文件,并写入如下内容
+```bash
+mkdir -p /proc
+mkdir -p /tmp
+mkdir -p /mnt
+/bin/mount -a
+mkdir -p /dev/pts
+mount -t devpts devpts /dev/pts
+echo /sbin/mdev > /proc/sys/kernel/hotplug
+mdev -s
+```
+修改rcS的执行权限
+```bash
+chmod a+x rcS
+```
+在_install/etc目录下创建一个fstab文件,并写入如下内容
+```
+proc /proc proc defaults 0 0
+tmpfs /tmp tmpfs defaults 0 0
+sysfs /sys sysfs defaults 0 0
+tmpfs /dev tmpfs defaults 0 0
+debugfs /sys/kernel/debug debugfs defaults 0 0
+```
+
+在_install/etc目录下创建一个inittab文件,并写入如下内容
+```bash
+::sysinit:/etc/init.d/rcS
+::respawn:-/bin/sh
+::askfirst:-/bin/sh
+::ctrlaltdel:/bin/umount -a -r
+```
+在_install/dev目录下创建设备节点
+```bash
+cd _install/dev
+sudo mknod console c 5 1
+sudo mknod null c 1 3
+```
+
+http://blog.17study.com.cn/2017/12/28/qemu-on-mac/
+https://www.xilinx.com/support/documentation/sw_manuals/xilinx2018_2/ug1169-xilinx-qemu.pdf
