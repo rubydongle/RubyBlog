@@ -1,0 +1,66 @@
+
+HEADINFO = []
+#    OFFSET   SIZE    DESCRIPTION
+HEADINFO[0]= \
+      0,      16,     'Header string: "SQLite format 3\000"'
+HEADINFO[1] = \
+     16,       2,     'Page size in bytes.  (1 means 65536)'
+HEADINFO_2 = \
+     18,       1,     'File format write version'
+HEADINFO_3 = \
+     19,       1,     'File format read version'
+HEADINFO_4 = \
+     20,       1,     'Bytes of unused space at the end of each page'
+HEADINFO_5 = \
+     21,       1,     'Max embedded payload fraction (must be 64)'
+HEADINFO_6 = \
+     22,       1,     'Min embedded payload fraction (must be 32)'
+HEADINFO_7 = \
+     23,       1,     'Min leaf payload fraction (must be 32)'
+HEADINFO_8 = \
+     24,       4,     'File change counter'
+HEADINFO_9 = \
+     28,       4,     'Reserved for future use'
+HEADINFO_10 = \
+     32,       4,     'First freelist page'
+HEADINFO_11 = \
+     36,       4,     'Number of freelist pages in the file'
+HEADINFO_12 = \
+     40,      60,     '15 4-byte meta values passed to higher layers'
+HEADINFO_13 = \
+     40,       4,     'Schema cookie'
+HEADINFO_14 = \
+     44,       4,     'File format of schema layer'
+HEADINFO_15 = \
+     48,       4,     'Size of page cache'
+HEADINFO_16 = \
+     52,       4,     'Largest root-page (auto/incr_vacuum)'
+HEADINFO_17 = \
+     56,       4,     '1=UTF-8 2=UTF16le 3=UTF16be'
+HEADINFO_18 = \
+     60,       4,     'User version'
+HEADINFO_19 = \
+     64,       4,     'Incremental vacuum mode'
+HEADINFO_20 = \
+     68,       4,     'Application-ID'
+HEADINFO_21 = \
+     72,      20,     'unused'
+HEADINFO_22 = \
+     92,       4,     'The version-valid-for number'
+HEADINFO_23 = \
+     96,       4,     'SQLITE_VERSION_NUMBER'
+
+import sys
+
+
+
+    
+
+def main(orig_args):
+    print(orig_args)
+    print(HEADINFO[1])
+
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
