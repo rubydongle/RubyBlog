@@ -58,8 +58,62 @@ https://sqlite.org/fileformat2.html#pages
 - A payload overflow page
 - A pointer map page
 
+** Each btree pages is divided into three sections:  The header, the
+** cell pointer array, and the cell content area.  Page 1 also has a 100-byte
+** file header that occurs before the page header.
+**
+**      |----------------|
+**      | file header    |   100 bytes.  Page 1 only.
+**      |----------------|
+**      | page header    |   8 bytes for leaves.  12 bytes for interior nodes
+**      |----------------|
+**      | cell pointer   |   |  2 bytes per cell.  Sorted order.
+**      | array          |   |  Grows downward
+**      |                |   v
+**      |----------------|
+**      | unallocated    |
+**      | space          |
+**      |----------------|   ^  Grows upwards
+**      | cell content   |   |  Arbitrary order interspersed with freeblocks.
+**      | area           |   |  and free space fragments.
+**      |----------------|
+**
+** The page headers looks like this:
+**
+**   OFFSET   SIZE     DESCRIPTION
+**      0       1      Flags. 1: intkey, 2: zerodata, 4: leafdata, 8: leaf
+**      1       2      byte offset to the first freeblock
+**      3       2      number of cells on this page
+**      5       2      first byte of the cell content area
+**      7       1      number of fragmented free bytes
+**      8       4      Right child (the Ptr(N) value).  Omitted on leaves.
+
 
 ## b-tree page
+
+B树页头包含6个部分
+1.100个字节的数据库文件头(只有page1包含)
+    The 100-byte database file header (found on page 1 only)
+2.8个或12个字节的b-树页头。
+    8 bytes for leaves.  12 bytes for interior nodes
+    The 8 or 12 byte b-tree page header
+    格式如下：
+
+|偏移(Offset)|大小(Size)|描述|
+|---|---|---|
+|0|1|偏移为0的这一个字节描述该B树页类型 2(0x02)-->Interior索引B-树页  5(0x05)-->Interior表B-树页 10(0x0a)-->leaf索引B-树页 13(0x0d)-->leaf表B-树页|
+|1|2|第一个FreeBlock的起始位置，如果没有FreeBlock就是0|
+|3|2|该页上的Cell数目|
+|5|2|指定了Cell内容区域的起始处|
+|7|1|No. of fragmented free bytes|
+|8|4|最右侧的指针，这个值只有Interior B-树页才有，在其他类型的页上忽略|
+
+
+3.
+The cell pointer array
+Unallocated space
+The cell content area
+The reserved region.
 在数据库头的偏移52位置
 52	4	The page number of the largest root b-tree page when in auto-vacuum or incremental-vacuum modes, or zero otherwise.
 
