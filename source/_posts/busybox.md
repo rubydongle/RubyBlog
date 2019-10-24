@@ -126,5 +126,44 @@ sudo mknod console c 5 1
 sudo mknod null c 1 3
 ```
 
+# 编译内核
+```bash
+ruby@spiderman:~$cd work/linux-5.2.14
+ruby@spiderman:~/work/linux-5.2.14$ export ARCH=arm
+ruby@spiderman:~/work/linux-5.2.14$ export CROSS_COMPILE=arm-linux-gnueabi-
+ruby@spiderman:~/work/linux-5.2.14$ make vexpress_defconfig
+ruby@spiderman:~/work/linux-5.2.14$ make menuconfig
+```
+在General setup中设置我们上面构建好的_install目录中内容为initramfs,并在Boot options中把Default kernel command string清空。
+![img](/files/busybox/kernelconfigramfs.png)
+![](/files/busybox/kernelconfigcommandstring.png)
+在Kernel Features中设置memory split为"3G/1G user/kernel split",并打开高端内存,设置为High Memory Support。
+```
+Kernel Features --->
+  
+```
+开始编译内核
+```bash
+make bzImage
+make dtbs
+```
+
+# 运行内核
+使用qemu模拟4核Cortex-A9的Versatile Express开发平台。
+```bash
+ruby@spiderman:~/work/linux-5.2.14$ \
+ qemu-system-arm \
+ -M vexpress-a9 \
+ -smp 4 \
+ -m 1024M \
+ -kernel arch/arm/boot/zImage \
+ -append "rdinit=/linuxrc console=ttyAMA0 loglevel=8" \
+ -dtb arch/arm/boot/dts/vexpress-v2p-ca9.dtb \
+ -nographic
+```
+![](/files/busybox/bootcomplete.png)
+
+
+
 http://blog.17study.com.cn/2017/12/28/qemu-on-mac/
 https://www.xilinx.com/support/documentation/sw_manuals/xilinx2018_2/ug1169-xilinx-qemu.pdf

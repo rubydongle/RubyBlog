@@ -108,6 +108,18 @@ B树页头包含6个部分
 |7|1|No. of fragmented free bytes|
 |8|4|最右侧的指针，这个值只有Interior B-树页才有，在其他类型的页上忽略|
 
+![img](/images/sqlitebook/db文件/rootpageparsed1.png)
+![img](/images/sqlitebook/db文件/rootpageorigin1.png)
+
+- 偏移0的一个字节是0d表明该页的类型是Leaf table
+- 偏移1的两个字节为00 00表示没有FreeBlock
+- 偏移3的2个字节为00 01表明该页上存储了1个Cell
+- 偏移5的两个字节为0f c4,指定了Cell内容的其实位置在0f c4
+![img](/images/sqlitebook/db文件/rootpagecellcontent1-1.png)
+![img](/images/sqlitebook/db文件/rootpagecellcontent1-2.png)
+- 偏移为7的1个字节为00 表明fragmented free bytes数为0
+- 由于这是一个Leaf Table B-Tree类型的页，所以偏移为8的内容可以忽略。
+
 
 3.
 The cell pointer array

@@ -76,3 +76,5 @@ ruby@batman:~$ ls -alh first.db
 |72	|20	|保留用作后续扩展，必须是0.
 |92	|4	|The version-valid-for number.
 |96	|4	|SQLite 版本号
+
+
