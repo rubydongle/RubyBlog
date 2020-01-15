@@ -63,6 +63,12 @@ ruby@batman:~$ file helloworld
 helloworld: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, for GNU/Linux 3.7.0, BuildID[sha1]=84c0a30aadb5863cfff7bda9ebe68d77635cbd39, with debug_info, not stripped
 ```
 
+## 解析
+puts函数定义如下
+```c
+int puts(const char *s);
+```
+
 ## 执行
 qemu-aarch64 helloworld
 或直接执行helloworld

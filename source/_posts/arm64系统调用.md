@@ -38,8 +38,8 @@ int kill(pid_t pid, int sig);
 #include <private/bionic_asm.h>
 
 ENTRY(kill)
-    mov     x8, __NR_kill
-    svc     #0
+    mov     x8, __NR_kill      // 将系统调用号存放到x8寄存器中
+    svc     #0                 // 触发异常,切换上下文到内核中执行
 
     cmn     x0, #(MAX_ERRNO + 1)
     cneg    x0, x0, hi
@@ -130,6 +130,189 @@ Is the 64-bit name of the second general-purpose source register, in the range 0
 
 cond
 Is one of the standard conditions.
+
+
+## 函数调用参数传递
+sum.c
+```c
+int sum(int a, int b, int c, int d, int e, int f) {
+        return a + b + c + d + e + f;
+}
+
+int main() {
+        sum(1,2,3,4,5,6);
+}
+```
+函数函数有6个参数，当main函数调用sum时参数如何传递进去的呢？进行编译生成汇编代码
+> aarch64-linux-gnu-gcc -S  sum.c  -o sum.s
+```c
+        .arch armv8-a
+        .file   "sum.c"
+        .text
+        .align  2
+        .global sum
+        .type   sum, %function
+sum:
+        sub     sp, sp, #32    // 栈顶调整
+        str     w0, [sp, 28]   // 将第1个参数,存入栈中
+        str     w1, [sp, 24]   // 将第2个参数,存入栈中
+        str     w2, [sp, 20]   // 将第3个参数,存入栈中
+        str     w3, [sp, 16]   // 将第4个参数,存入栈中
+        str     w4, [sp, 12]   // 将第5个参数,存入栈中
+        str     w5, [sp, 8]    // 将第6个参数,存入栈中
+        ldr     w1, [sp, 28]   // 取第2个参数
+        ldr     w0, [sp, 24]   // 取第1个参数
+        add     w1, w1, w0     // 将第1，2参数相加存到w1寄存器中
+        ldr     w0, [sp, 20]   // 取第3个参数存到w0寄存器
+        add     w1, w1, w0
+        ldr     w0, [sp, 16]
+        add     w1, w1, w0
+        ldr     w0, [sp, 12]
+        add     w1, w1, w0
+        ldr     w0, [sp, 8]
+        add     w0, w1, w0
+        add     sp, sp, 32
+        ret
+        .size   sum, .-sum
+        .align  2
+        .global main
+        .type   main, %function
+main:
+        stp     x29, x30, [sp, -16]!
+        add     x29, sp, 0
+        mov     w5, 6
+        mov     w4, 5
+        mov     w3, 4
+        mov     w2, 3
+        mov     w1, 2
+        mov     w0, 1
+        bl      sum
+        mov     w0, 0
+        ldp     x29, x30, [sp], 16
+        ret
+        .size   main, .-main
+        .ident  "GCC: (Linaro GCC 7.4-2019.02) 7.4.1 20181213 [linaro-7.4-2019.02 revision 56ec6f6b99cc167ff0c2f8e1a2eed33b1edc85d4]"
+        .section        .note.GNU-stack,"",@progbits
+
+```
+观察main函数,它将参数分别存在w5,w4,w3,w2,w1,w0六个寄存器内然后通过跳转指令，跳入sum函数中执行。
+```c
+        mov     w5, 6
+        mov     w4, 5
+        mov     w3, 4
+        mov     w2, 3
+        mov     w1, 2
+        mov     w0, 1
+        bl      sum
+```
+观察sum函数，其首先将参数存储到栈中，然后进行累加操作。
+
+arm64最多能通过寄存器传递8个参数，当参数数目大于8个时
+```c
+int sum(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j) {
+        return a + b + c + d + e + f;
+}
+
+int main() {
+        sum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+}
+
+```
+编译成汇编代码
+```c
+        .arch armv8-a
+        .file   "sum.c"
+        .text
+        .align  2
+        .global sum
+        .type   sum, %function
+sum:
+        sub     sp, sp, #32
+        str     w0, [sp, 28]
+        str     w1, [sp, 24]
+        str     w2, [sp, 20]
+        str     w3, [sp, 16]
+        str     w4, [sp, 12]
+        str     w5, [sp, 8]
+        str     w6, [sp, 4]
+        str     w7, [sp]
+        ldr     w1, [sp, 28]
+        ldr     w0, [sp, 24]
+        add     w1, w1, w0
+        ldr     w0, [sp, 20]
+        add     w1, w1, w0
+        ldr     w0, [sp, 16]
+        add     w1, w1, w0
+        ldr     w0, [sp, 12]
+        add     w1, w1, w0
+        ldr     w0, [sp, 8]
+        add     w0, w1, w0
+        add     sp, sp, 32
+        ret
+        .size   sum, .-sum
+        .align  2
+        .global main
+        .type   main, %function
+main:
+        sub     sp, sp, #32
+        stp     x29, x30, [sp, 16]
+        add     x29, sp, 16
+        mov     w0, 10
+        str     w0, [sp, 8]
+        mov     w0, 9
+        str     w0, [sp]
+        mov     w7, 8
+        mov     w6, 7
+        mov     w5, 6
+        mov     w4, 5
+        mov     w3, 4
+        mov     w2, 3
+        mov     w1, 2
+        mov     w0, 1
+        bl      sum
+        mov     w0, 0
+        ldp     x29, x30, [sp, 16]
+        add     sp, sp, 32
+        ret
+        .size   main, .-main
+        .ident  "GCC: (Linaro GCC 7.4-2019.02) 7.4.1 20181213 [linaro-7.4-2019.02 revision 56ec6f6b99cc167ff0c2f8e1a2eed33b1edc85d4]"
+        .section        .note.GNU-stack,"",@progbits
+```
+
+多余的参数通过栈传递
+```c
+        add     x29, sp, 16
+        mov     w0, 10      // 第10个参数
+        str     w0, [sp, 8]
+        mov     w0, 9       // 第9个参数
+        str     w0, [sp]
+        mov     w7, 8
+        mov     w6, 7
+        mov     w5, 6
+        mov     w4, 5
+        mov     w3, 4
+        mov     w2, 3
+        mov     w1, 2
+        mov     w0, 1
+        bl      sum
+```
+
+> arm通用寄存器的使用可参考https://winddoing.github.io/post/7190.html
+
+通用寄存器分为4组：
+1. 参数寄存器`（X0-X7）`： 用作临时寄存器或可以保存的调用者保存的寄存器变量函数内的中间值，调用其他函数之间的值（8个寄存器可用于传递参数）
+2. 来电保存的临时寄存器`（X9-X15）`： 如果调用者要求在任何这些寄存器中保留值调用另一个函数，调用者必须将受影响的寄存器保存在自己的堆栈中帧。 它们可以通过被调用的子程序进行修改，而无需保存并在返回调用者之前恢复它们。
+3. 被调用者保存的寄存器`（X19-X29）`： 这些寄存器保存在被调用者帧中。 它们可以被被调用者修改子程序，只要它们在返回之前保存并恢复。
+4. 特殊用途寄存器`（X8，X16-X18，X29，X30）`：
+    - X8： 是间接结果寄存器,用于保存子程序返回地址，尽量不使用
+    - X16和X17： 程序内调用临时寄存器
+    - X18： 平台寄存器，保留用于平台ABI，尽量不使用
+    - X29： 帧指针寄存器（FP）
+    - X30： 链接寄存器（LR）
+    - X31： 堆栈指针寄存器SP或零寄存器ZXR
+
+> 参考文档:[DEN0024A_v8_architecture_PG.pdf](https://winddoing.github.io/downloads/arm/DEN0024A_v8_architecture_PG.pdf)
+
 
 
 ## 内核空间
